@@ -7,6 +7,7 @@ import wandb
 import torch
 import transformers
 from datasets import load_dataset
+import multiprocessing
 
 """
 Unused imports:
@@ -92,12 +93,16 @@ def train(
 
     prompter = Prompter(prompt_template_name)
 
+    CPU_COUNT = multiprocessing.cpu_count()
+    NUM_PROC = min(16, CPU_COUNT)
+
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     ddp = world_size != 1
     if ddp:
         device_map = {"": int(os.environ.get("LOCAL_RANK") or 0)}
         gradient_accumulation_steps = gradient_accumulation_steps // world_size
+        NUM_PROC = max(1, CPU_COUNT // world_size)
 
     # Check if parameter passed or if set within environ
     use_wandb = len(wandb_project) > 0 or (
@@ -212,13 +217,13 @@ def train(
             test_size=val_set_size, shuffle=True, seed=2023
         )
         train_data = (
-            train_val["train"].shuffle().map(generate_and_tokenize_prompt)
+            train_val["train"].shuffle().map(generate_and_tokenize_prompt, num_proc = NUM_PROC)
         )
         val_data = (
-            train_val["test"].shuffle().map(generate_and_tokenize_prompt)
+            train_val["test"].shuffle().map(generate_and_tokenize_prompt, num_proc = NUM_PROC)
         )
     else:
-        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt)
+        train_data = data["train"].shuffle().map(generate_and_tokenize_prompt, num_proc = NUM_PROC)
         val_data = None
 
     if not ddp and torch.cuda.device_count() > 1:
