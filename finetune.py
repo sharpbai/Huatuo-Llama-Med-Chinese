@@ -60,6 +60,7 @@ def train(
     wandb_log_model: str = "",  # options: false | true
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
+    train_in_8bit: bool = True,
 ):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -118,7 +119,7 @@ def train(
 
     model = LlamaForCausalLM.from_pretrained(
         base_model,
-        load_in_8bit=True,
+        load_in_8bit=train_in_8bit,
         torch_dtype=torch.float16,
         device_map=device_map,
     )
@@ -173,7 +174,8 @@ def train(
             ]  # could be sped up, probably
         return tokenized_full_prompt
 
-    model = prepare_model_for_int8_training(model)
+    if train_in_8bit:
+        model = prepare_model_for_int8_training(model)
 
     config = LoraConfig(
         r=lora_r,
