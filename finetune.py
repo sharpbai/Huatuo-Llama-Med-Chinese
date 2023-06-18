@@ -29,7 +29,7 @@ from utils.prompter import Prompter
 from transformers import Seq2SeqTrainer, TrainerCallback, TrainingArguments, TrainerState, TrainerControl
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 
-from llama_flash_attn_monkey_patch import (
+from llama_sdp_attn_monkey_patch import (
     replace_llama_attn_with_flash_attn,
 )
 
@@ -101,8 +101,7 @@ def train(
     CPU_COUNT = multiprocessing.cpu_count()
     NUM_PROC = min(16, CPU_COUNT)
 
-    if train_with_flash_attn:
-        replace_llama_attn_with_flash_attn()
+    replace_llama_attn_with_flash_attn(train_with_flash_attn)
 
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
