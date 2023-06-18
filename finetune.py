@@ -29,6 +29,9 @@ from utils.prompter import Prompter
 from transformers import Seq2SeqTrainer, TrainerCallback, TrainingArguments, TrainerState, TrainerControl
 from transformers.trainer_utils import PREFIX_CHECKPOINT_DIR
 
+from llama_flash_attn_monkey_patch import (
+    replace_llama_attn_with_flash_attn,
+)
 
 def train(
     # model/data params
@@ -61,6 +64,7 @@ def train(
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
     train_in_8bit: bool = True,
+    train_with_flash_attn: bool = False,
 ):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -96,6 +100,9 @@ def train(
 
     CPU_COUNT = multiprocessing.cpu_count()
     NUM_PROC = min(16, CPU_COUNT)
+
+    if train_with_flash_attn:
+        replace_llama_attn_with_flash_attn()
 
     device_map = "auto"
     world_size = int(os.environ.get("WORLD_SIZE", 1))
