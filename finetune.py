@@ -82,6 +82,8 @@ def train(
             f"lora_target_modules: {lora_target_modules}\n"
             f"train_on_inputs: {train_on_inputs}\n"
             f"group_by_length: {group_by_length}\n"
+            f"train_in_8bit: {train_in_8bit}\n"
+            f"train_with_flash_attn: {train_with_flash_attn}\n"
             f"use_gradient_checkpointing: {use_gradient_checkpointing}\n"
             f"wandb_project: {wandb_project}\n"
             f"wandb_run_name: {wandb_run_name}\n"
