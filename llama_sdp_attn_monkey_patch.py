@@ -9,15 +9,6 @@ from einops import rearrange
 import torch.nn.functional as F
 import torch.backends.cuda as cuda
 
-def bind_arguments(*args, **kwargs):
-    def decorator(func):
-        def wrapper(self, *fargs, **fkwargs):
-            bound_args = dict(zip(args, fargs))
-            bound_args.update(kwargs)
-            return func(self, **bound_args, **fkwargs)
-        return wrapper
-    return decorator
-
 def forward(
     self,
     hidden_states: torch.Tensor,
@@ -37,8 +28,8 @@ def forward(
     kv_seq_len = key_states.shape[-2]
 
     if past_key_value is not None:
-        
         kv_seq_len += past_key_value[0].shape[-2]
+
     cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
     query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
     # [bsz, nh, t, hd]
@@ -50,14 +41,12 @@ def forward(
 
     past_key_value = (key_states, value_states) if use_cache else None
 
-    with cuda.sdp_kernel(
-        enable_flash=flash_attn,
-        enable_math=not flash_attn,
-        enable_mem_efficient=not flash_attn,
-    ):
-        attn_output = F.scaled_dot_product_attention(
-            query_states, key_states, value_states,
-            attn_mask=attention_mask, dropout_p=0.0)
+    is_causal = attention_mask is None
+
+    attn_output = F.scaled_dot_product_attention(
+        query_states, key_states, value_states,
+        attn_mask=attention_mask, dropout_p=0.0,
+        is_causal=is_causal)
 
     if attn_output.size() != (bsz, self.num_heads, q_len, self.head_dim):
         raise ValueError(
@@ -67,7 +56,6 @@ def forward(
 
     attn_output = attn_output.transpose(1, 2)
     attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
-
     attn_output = self.o_proj(attn_output)
 
     if not output_attentions:
@@ -76,6 +64,6 @@ def forward(
     return attn_output, attn_weights, past_key_value
 
 
-def replace_llama_attn_with_flash_attn(flash_attn=False):
-    print("Replacing original LLaMa attention with flash attention", flush=True)
-    transformers.models.llama.modeling_llama.LlamaAttention.forward = bind_arguments(flash_attn=flash_attn)(forward)
+def replace_llama_attn_with_sdp_attn():
+    print("Replacing original LLaMa attention with torch sdp attention", flush=True)
+    transformers.models.llama.modeling_llama.LlamaAttention.forward = forward
