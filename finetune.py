@@ -62,6 +62,7 @@ def train(
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
     train_in_8bit: bool = True,
     train_with_flash_attn: bool = False,
+    use_gradient_checkpointing = False,
 ):
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         print(
@@ -81,6 +82,7 @@ def train(
             f"lora_target_modules: {lora_target_modules}\n"
             f"train_on_inputs: {train_on_inputs}\n"
             f"group_by_length: {group_by_length}\n"
+            f"use_gradient_checkpointing: {use_gradient_checkpointing}\n"
             f"wandb_project: {wandb_project}\n"
             f"wandb_run_name: {wandb_run_name}\n"
             f"wandb_watch: {wandb_watch}\n"
@@ -187,7 +189,12 @@ def train(
         return tokenized_full_prompt
 
     if train_in_8bit:
-        model = prepare_model_for_int8_training(model)
+        model = prepare_model_for_int8_training(model,
+            use_gradient_checkpointing=use_gradient_checkpointing)
+    
+    if use_gradient_checkpointing:
+        model.gradient_checkpointing_enable()  # reduce number of stored activations
+        model.enable_input_require_grads()
 
     config = LoraConfig(
         r=lora_r,
