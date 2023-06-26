@@ -60,6 +60,7 @@ def train(
     wandb_log_model: str = "",  # options: false | true
     resume_from_checkpoint: str = None,  # either training checkpoint or final adapter
     prompt_template_name: str = "alpaca",  # The prompt template to use, will default to alpaca.
+    enable_tf32: bool = True,
     train_in_8bit: bool = True,
     train_with_flash_attn: bool = False,
     use_gradient_checkpointing = False,
@@ -279,6 +280,7 @@ def train(
             warmup_ratio=0.1,
             num_train_epochs=num_epochs,
             learning_rate=learning_rate,
+            tf32=enable_tf32,
             fp16=True,
             logging_steps=8,
             optim="adamw_torch",
